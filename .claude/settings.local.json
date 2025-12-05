@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir /s /b \"app\\(dashboard)\\documents\")",
+      "Bash(dir:*)",
+      "Bash(ls:*)",
+      "Bash(test:*)",
+      "Bash(cat:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run dev:*)",
+      "Bash(taskkill //F //PID 35648)",
+      "Bash(taskkill //F //PID 34524)",
+      "Bash(npm run build:*)",
+      "Bash(if exist \"C:\\Users\\Bhavesh\\Desktop\\in\\legal-doc-automation\\app\\(dashboard)\\documents\\new\\templates\" rmdir \"C:\\Users\\Bhavesh\\Desktop\\in\\legal-doc-automation\\app\\(dashboard)\\documents\\new\\templates\")",
+      "Bash(psql:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

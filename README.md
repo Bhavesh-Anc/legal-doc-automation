@@ -1,36 +1,175 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Legal Document Automation Platform
 
-## Getting Started
+AI-powered legal document generation for California family law attorneys. Generate court-ready documents in minutes, not hours.
 
-First, run the development server:
+## 🚀 Features
+
+- **5 Document Types**: Divorce petitions, custody agreements, property settlements, child support, and spousal support orders
+- **Multi-AI Support**: OpenAI, Claude, and Gemini with automatic fallback
+- **Smart Forms**: 4-step wizard with validation and auto-save
+- **Court-Ready Output**: Properly formatted DOCX files with legal citations
+- **Secure Storage**: Documents stored in Supabase with organization-level isolation
+- **Role-Based Access**: Organization owners, admins, and members
+
+## 📋 Tech Stack
+
+- **Framework**: Next.js 14 (App Router)
+- **Language**: TypeScript
+- **Database**: Supabase (PostgreSQL)
+- **Authentication**: Supabase Auth
+- **Styling**: Tailwind CSS
+- **Forms**: React Hook Form + Zod validation
+- **AI**: OpenAI, Anthropic Claude, Google Gemini
+- **Document Generation**: docx library
+
+## 🛠️ Setup
+
+### Prerequisites
+
+- Node.js 18+
+- npm or yarn
+- Supabase account
+- At least one AI provider API key (OpenAI, Claude, or Gemini)
+
+### Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone <your-repo-url>
+   cd legal-doc-automation
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Set up environment variables**
+   ```bash
+   cp .env.example .env.local
+   ```
+
+   Edit `.env.local` with your credentials:
+   ```env
+   # Supabase
+   NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+
+   # AI Provider (choose: openai, claude, gemini, or test)
+   AI_PROVIDER=openai
+
+   # API Keys (at least one required)
+   OPENAI_API_KEY=sk-...
+   ANTHROPIC_API_KEY=sk-ant-...
+   GOOGLE_AI_KEY=...
+   ```
+
+4. **Set up Supabase database**
+
+   Run the SQL in your Supabase SQL Editor:
+   ```bash
+   # File: insert-templates-CORRECT.sql
+   # File: create-table-structure.sql (if needed)
+   ```
+
+5. **Run development server**
+   ```bash
+   npm run dev
+   ```
+
+6. **Open the app**
+   ```
+   http://localhost:3000
+   ```
+
+## 📚 Documentation
+
+- **CLAUDE.md** - Project instructions and architecture
+- **FINAL-SETUP-INSTRUCTIONS.md** - Detailed setup guide
+- **insert-templates-CORRECT.sql** - Database templates
+- **create-table-structure.sql** - Table schema updates
+
+## 🎯 Quick Start
+
+1. Sign up for an account
+2. Navigate to Documents → New Document
+3. Select a template (e.g., Divorce Petition)
+4. Fill out the form
+5. Click "Generate Document"
+6. Download your DOCX file
+
+## 🔐 Security
+
+- Row Level Security (RLS) enabled on all tables
+- Organization-level data isolation
+- Secure authentication with Supabase Auth
+- API keys stored server-side only
+- Input validation on client and server
+
+## 📦 Deployment
+
+### Vercel (Recommended)
+
+1. Push to GitHub
+2. Import project in Vercel
+3. Add environment variables
+4. Deploy
+
+### Manual
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run build
+npm start
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🧪 Testing
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+# Run in test mode (no AI API required)
+# Set in .env.local:
+AI_PROVIDER=test
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+# Then test document generation
+npm run dev
+```
 
-## Learn More
+## 📄 Available Document Templates
 
-To learn more about Next.js, take a look at the following resources:
+1. **Divorce Petition** (FL-100) - Petition for Dissolution of Marriage
+2. **Custody Agreement** (FL-311) - Child Custody and Visitation
+3. **Property Settlement** - Marital Property Division
+4. **Child Support Order** (FL-150) - Guideline Child Support
+5. **Spousal Support Order** (FL-157) - Spousal Support with FC §4320 factors
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 🛣️ Roadmap
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- [ ] Additional California family law templates
+- [ ] Document editing and regeneration
+- [ ] E-signature integration
+- [ ] Client portal
+- [ ] Billing and subscriptions
+- [ ] Team collaboration features
+- [ ] Court filing integration
 
-## Deploy on Vercel
+## 🤝 Contributing
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Contributions welcome! Please open an issue first to discuss changes.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 📝 License
+
+[Your License Here]
+
+## 🆘 Support
+
+For issues or questions:
+- Check documentation in `/docs`
+- Open an issue on GitHub
+- Contact: [your-email]
+
+## ⚖️ Legal Disclaimer
+
+This software generates legal documents for informational purposes only and does not constitute legal advice. Users should consult with a licensed attorney before filing any documents with the court.
+
+---
+
+Built with ❤️ for California family law attorneys
