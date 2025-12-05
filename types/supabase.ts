@@ -142,6 +142,7 @@ export interface Database {
           title: string
           form_data: Json
           file_url: string | null
+          pdf_url: string | null
           file_size: number | null
           status: 'draft' | 'generating' | 'generated' | 'error' | 'downloaded'
           error_message: string | null
@@ -156,6 +157,7 @@ export interface Database {
           title: string
           form_data: Json
           file_url?: string | null
+          pdf_url?: string | null
           file_size?: number | null
           status?: 'draft' | 'generating' | 'generated' | 'error' | 'downloaded'
           error_message?: string | null
@@ -170,6 +172,7 @@ export interface Database {
           title?: string
           form_data?: Json
           file_url?: string | null
+          pdf_url?: string | null
           file_size?: number | null
           status?: 'draft' | 'generating' | 'generated' | 'error' | 'downloaded'
           error_message?: string | null
