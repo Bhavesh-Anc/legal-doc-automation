@@ -36,7 +36,7 @@ export interface AIGenerationOptions {
  */
 export async function generateWithAI(options: AIGenerationOptions): Promise<string> {
   const {
-    provider = 'openai',
+    provider = 'gemini',
     systemPrompt,
     userPrompt,
     temperature = 0.2,
@@ -74,14 +74,20 @@ export async function generateWithAI(options: AIGenerationOptions): Promise<stri
     // Continue to fallback logic below
   }
 
-  // Fallback chain: GROQ → OpenAI → Claude → Gemini → Test
-  const fallbackProviders: AIProvider[] = ['groq', 'openai', 'claude', 'gemini', 'test']
+  // Fallback chain: Gemini → GROQ → OpenAI → Claude → Test
+  const fallbackProviders: AIProvider[] = ['gemini', 'groq', 'openai', 'claude', 'test']
 
   for (const fallbackProvider of fallbackProviders) {
     if (fallbackProvider === provider) continue // Skip already tried provider
 
     try {
       switch (fallbackProvider) {
+        case 'gemini':
+          if (googleAI) {
+            console.log('Falling back to Gemini')
+            return await generateWithGemini(systemPrompt, userPrompt, temperature, maxTokens)
+          }
+          break
         case 'groq':
           if (groq) {
             console.log('Falling back to GROQ')
@@ -98,12 +104,6 @@ export async function generateWithAI(options: AIGenerationOptions): Promise<stri
           if (anthropic) {
             console.log('Falling back to Claude')
             return await generateWithClaude(systemPrompt, userPrompt, temperature, maxTokens)
-          }
-          break
-        case 'gemini':
-          if (googleAI) {
-            console.log('Falling back to Gemini')
-            return await generateWithGemini(systemPrompt, userPrompt, temperature, maxTokens)
           }
           break
         case 'test':
@@ -217,7 +217,7 @@ async function generateWithGemini(
   }
 
   const model = googleAI.getGenerativeModel({
-    model: 'gemini-1.5-flash', // Fast and cost-effective
+    model: 'gemini-2.0-flash-exp', // Latest Gemini 2.0 Flash (experimental, free)
     generationConfig: {
       temperature,
       maxOutputTokens: maxTokens,
