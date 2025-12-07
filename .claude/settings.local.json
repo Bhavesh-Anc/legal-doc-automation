@@ -12,7 +12,13 @@
       "Bash(taskkill //F //PID 34524)",
       "Bash(npm run build:*)",
       "Bash(if exist \"C:\\Users\\Bhavesh\\Desktop\\in\\legal-doc-automation\\app\\(dashboard)\\documents\\new\\templates\" rmdir \"C:\\Users\\Bhavesh\\Desktop\\in\\legal-doc-automation\\app\\(dashboard)\\documents\\new\\templates\")",
-      "Bash(psql:*)"
+      "Bash(psql:*)",
+      "Bash(git commit:*)",
+      "Bash(gh --version:*)",
+      "Bash(git remote add:*)",
+      "Bash(git push:*)",
+      "Bash(git add:*)",
+      "Bash(.env.local)"
     ],
     "deny": [],
     "ask": []

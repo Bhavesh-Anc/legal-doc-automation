@@ -91,6 +91,9 @@ export async function POST(req: NextRequest) {
         temperature: 0.2, // Lower temperature for consistent legal text
         maxTokens: 2000,
       })
+
+      // Clean up generated text: remove placeholders, ensure signature blocks
+      generatedText = cleanGeneratedDocument(generatedText, template, form_data)
     } catch (error: any) {
       console.error('AI generation error:', error)
       return NextResponse.json(
@@ -194,6 +197,53 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     )
   }
+}
+
+/**
+ * Clean generated document to remove placeholders and ensure completeness
+ */
+function cleanGeneratedDocument(text: string, template: any, formData: any): string {
+  let cleaned = text
+
+  // Get current date in proper format
+  const currentDate = new Date().toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  })
+
+  // Remove common placeholder patterns
+  cleaned = cleaned.replace(/\[INSERT\s+MONTH\]/gi, currentDate.split(' ')[0]) // Extract month
+  cleaned = cleaned.replace(/\[INSERT\s+DAY\]/gi, currentDate.split(' ')[1].replace(',', ''))
+  cleaned = cleaned.replace(/\[INSERT\s+YEAR\]/gi, currentDate.split(' ')[2])
+  cleaned = cleaned.replace(/\[INSERT\s+DATE\]/gi, currentDate)
+  cleaned = cleaned.replace(/\[INSERT\s+[^\]]+\]/g, '_________________') // Replace any remaining placeholders with blank lines
+  cleaned = cleaned.replace(/\[TO BE DETERMINED\]/gi, '_________________')
+  cleaned = cleaned.replace(/\[TBD\]/gi, '_________________')
+
+  // Ensure signature block is present at the end
+  const hasSignature = /SIGNATURE|Signature|Respectfully submitted|_+\s*$/i.test(cleaned)
+
+  if (!hasSignature) {
+    // Add signature block based on template type
+    const signatureName = formData.petitioner_name || formData.party1_name || formData.parent1_name || formData.paying_parent || formData.paying_spouse || 'Petitioner'
+
+    cleaned += `\n\nDated: ${currentDate}\n\n`
+    cleaned += `Respectfully submitted,\n\n`
+    cleaned += `_________________________________\n`
+    cleaned += `${signatureName}\n`
+
+    if (template.id.includes('custody')) {
+      cleaned += `Parent 1\n\n\n`
+      cleaned += `_________________________________\n`
+      cleaned += `${formData.parent2_name || 'Parent 2'}\n`
+      cleaned += `Parent 2`
+    } else {
+      cleaned += `Petitioner, In Pro Per`
+    }
+  }
+
+  return cleaned
 }
 
 function buildPrompt(template: any, formData: any): string {
@@ -1315,50 +1365,7 @@ async function createDocx(
           spacing: { after: 400 },
         }),
 
-        // Form fields section
-        new Paragraph({
-          children: [
-            new TextRun({
-              text: 'CASE INFORMATION',
-              bold: true,
-              size: 24,
-            }),
-          ],
-          spacing: { before: 200, after: 200 },
-        }),
-
-        new Paragraph({
-          text: `Petitioner: ${formData.petitioner_name || 'N/A'}`,
-          spacing: { after: 100 },
-        }),
-
-        new Paragraph({
-          text: `Respondent: ${formData.respondent_name || 'N/A'}`,
-          spacing: { after: 100 },
-        }),
-
-        new Paragraph({
-          text: `Date of Marriage: ${formData.marriage_date || 'N/A'}`,
-          spacing: { after: 100 },
-        }),
-
-        new Paragraph({
-          text: `Date of Separation: ${formData.separation_date || 'N/A'}`,
-          spacing: { after: 300 },
-        }),
-
-        // AI-generated content
-        new Paragraph({
-          children: [
-            new TextRun({
-              text: 'PETITION',
-              bold: true,
-              size: 24,
-            }),
-          ],
-          spacing: { before: 400, after: 200 },
-        }),
-
+        // AI-generated content (properly formatted with case caption from AI)
         // Split generated text into paragraphs
         ...generatedText.split('\n\n').map(para =>
           new Paragraph({
