@@ -8,6 +8,11 @@ const openai = process.env.OPENAI_API_KEY ? new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 }) : null
 
+const groq = process.env.GROQ_API_KEY ? new OpenAI({
+  apiKey: process.env.GROQ_API_KEY,
+  baseURL: 'https://api.groq.com/openai/v1',
+}) : null
+
 const anthropic = process.env.ANTHROPIC_API_KEY ? new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 }) : null
@@ -16,7 +21,7 @@ const googleAI = process.env.GOOGLE_AI_KEY ? new GoogleGenerativeAI(
   process.env.GOOGLE_AI_KEY
 ) : null
 
-export type AIProvider = 'openai' | 'claude' | 'gemini' | 'test'
+export type AIProvider = 'openai' | 'groq' | 'claude' | 'gemini' | 'test'
 
 export interface AIGenerationOptions {
   provider?: AIProvider
@@ -41,6 +46,11 @@ export async function generateWithAI(options: AIGenerationOptions): Promise<stri
   // Try specified provider first
   try {
     switch (provider) {
+      case 'groq':
+        if (groq) {
+          return await generateWithGroq(systemPrompt, userPrompt, temperature, maxTokens)
+        }
+        break
       case 'openai':
         if (openai) {
           return await generateWithOpenAI(systemPrompt, userPrompt, temperature, maxTokens)
@@ -64,14 +74,20 @@ export async function generateWithAI(options: AIGenerationOptions): Promise<stri
     // Continue to fallback logic below
   }
 
-  // Fallback chain: OpenAI → Claude → Gemini → Test
-  const fallbackProviders: AIProvider[] = ['openai', 'claude', 'gemini', 'test']
+  // Fallback chain: GROQ → OpenAI → Claude → Gemini → Test
+  const fallbackProviders: AIProvider[] = ['groq', 'openai', 'claude', 'gemini', 'test']
 
   for (const fallbackProvider of fallbackProviders) {
     if (fallbackProvider === provider) continue // Skip already tried provider
 
     try {
       switch (fallbackProvider) {
+        case 'groq':
+          if (groq) {
+            console.log('Falling back to GROQ')
+            return await generateWithGroq(systemPrompt, userPrompt, temperature, maxTokens)
+          }
+          break
         case 'openai':
           if (openai) {
             console.log('Falling back to OpenAI')
@@ -102,6 +118,32 @@ export async function generateWithAI(options: AIGenerationOptions): Promise<stri
 
   // If all providers fail, return test content
   return generateTestContent(userPrompt)
+}
+
+/**
+ * Generate text using GROQ (fast, free inference)
+ */
+async function generateWithGroq(
+  systemPrompt: string,
+  userPrompt: string,
+  temperature: number,
+  maxTokens: number
+): Promise<string> {
+  if (!groq) {
+    throw new Error('GROQ client not initialized')
+  }
+
+  const completion = await groq.chat.completions.create({
+    model: 'llama-3.3-70b-versatile', // Fast, high-quality model
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt },
+    ],
+    temperature,
+    max_tokens: maxTokens,
+  })
+
+  return completion.choices[0].message.content || ''
 }
 
 /**
