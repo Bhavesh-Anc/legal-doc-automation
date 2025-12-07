@@ -138,6 +138,10 @@ export default function CustodyAgreementFormWrapper({ template }: CustodyAgreeme
     setError(null)
 
     try {
+      // Wait for session cookies to be set
+      router.refresh()
+      await new Promise(resolve => setTimeout(resolve, 1000))
+
       const response = await fetch('/api/generate-document', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
