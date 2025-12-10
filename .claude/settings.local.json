@@ -18,7 +18,14 @@
       "Bash(git remote add:*)",
       "Bash(git push:*)",
       "Bash(git add:*)",
-      "Bash(.env.local)"
+      "Bash(.env.local)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(taskkill:*)",
+      "Bash(timeout 10 ping:*)",
+      "Bash(nul)",
+      "WebFetch(domain:legal-doc-automation.vercel.app)",
+      "Bash(if exist nul del nul)"
     ],
     "deny": [],
     "ask": []

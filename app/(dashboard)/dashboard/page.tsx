@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
+import { DashboardTracker } from '@/components/analytics/DashboardTracker'
 
 export default async function DashboardPage() {
   const supabase = createClient()
@@ -31,6 +32,7 @@ export default async function DashboardPage() {
 
   return (
     <div>
+      <DashboardTracker />
       {/* Welcome Section */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">

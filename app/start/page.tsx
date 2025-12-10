@@ -48,15 +48,24 @@ export default function StartPage() {
   async function fetchDocumentCount() {
     try {
       const supabase = createClient()
-      const { count } = await supabase
+      const { count, error, data } = await supabase
         .from('generated_documents')
         .select('*', { count: 'exact', head: true })
 
-      if (count) {
+      console.log('Document count result:', { count, error, data })
+
+      if (error) {
+        console.error('Error fetching count:', error)
+      }
+
+      if (count !== null) {
         setDocCount(count)
+        console.log('Set doc count to:', count)
+      } else {
+        console.log('Count is null, not updating')
       }
     } catch (err) {
-      console.error('Error fetching count:', err)
+      console.error('Exception fetching count:', err)
     }
   }
 

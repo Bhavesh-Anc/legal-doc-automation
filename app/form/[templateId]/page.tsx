@@ -10,6 +10,8 @@ import CustodyAgreementFormWrapper from './wrappers/CustodyAgreementFormWrapper'
 import PropertySettlementFormWrapper from './wrappers/PropertySettlementFormWrapper'
 import ChildSupportFormWrapper from './wrappers/ChildSupportFormWrapper'
 import SpousalSupportFormWrapper from './wrappers/SpousalSupportFormWrapper'
+import { NameChangeFormWrapper } from './wrappers/NameChangeFormWrapper'
+import { StipulationSupportFormWrapper } from './wrappers/StipulationSupportFormWrapper'
 
 interface DocumentTemplate {
   id: string
@@ -114,16 +116,25 @@ export default function PublicFormPage() {
   // Render the appropriate form wrapper based on template ID
   const renderForm = () => {
     switch (templateId) {
+      case 'divorce-petition':
       case 'divorce-petition-ca':
         return <DivorcePetitionFormWrapper template={template} />
+      case 'custody-agreement':
       case 'custody-agreement-ca':
         return <CustodyAgreementFormWrapper template={template} />
+      case 'property-settlement':
       case 'property-settlement-ca':
         return <PropertySettlementFormWrapper template={template} />
+      case 'child-support':
       case 'child-support-ca':
         return <ChildSupportFormWrapper template={template} />
+      case 'spousal-support':
       case 'spousal-support-ca':
         return <SpousalSupportFormWrapper template={template} />
+      case 'name-change':
+        return <NameChangeFormWrapper template={template} />
+      case 'stipulation-support':
+        return <StipulationSupportFormWrapper template={template} />
       default:
         return (
           <div className="min-h-screen flex items-center justify-center bg-gray-50">

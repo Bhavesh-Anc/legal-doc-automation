@@ -4,12 +4,14 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { ExitIntentPopup } from '@/components/ui/exit-intent-popup'
+import { analytics } from '@/lib/analytics'
 
 export default function HomePage() {
   const [docCount, setDocCount] = useState(0)
 
   useEffect(() => {
     fetchDocumentCount()
+    analytics.landingPageViewed()
   }, [])
 
   async function fetchDocumentCount() {
@@ -80,12 +82,14 @@ export default function HomePage() {
             <Link
               href="/start"
               className="px-8 py-3 text-lg font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700"
+              onClick={() => analytics.ctaClicked('Generate Free Document', 'hero')}
             >
               Generate Free Document →
             </Link>
             <Link
               href="/login"
               className="px-8 py-3 text-lg font-semibold text-gray-700 bg-white border-2 border-gray-300 rounded-lg hover:bg-gray-50"
+              onClick={() => analytics.ctaClicked('Sign In', 'hero')}
             >
               Sign In
             </Link>
