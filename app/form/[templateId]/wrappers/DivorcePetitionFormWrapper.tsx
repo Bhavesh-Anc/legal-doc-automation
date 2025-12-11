@@ -10,21 +10,32 @@ import { Input } from '@/components/ui/input'
 import { FieldLabel } from '@/components/ui/tooltip'
 import { DocumentPreview } from '@/components/ui/document-preview'
 import { SignupModal } from '@/components/ui/signup-modal'
+import {
+  phoneSchema,
+  optionalPhoneSchema,
+  optionalEmailSchema,
+  pastDateSchema,
+  CALIFORNIA_COUNTIES,
+  validationHelpers,
+  formatPhoneNumber,
+} from '@/lib/form-validations'
 
 const divorceSchema = z.object({
   petitioner_name: z.string().min(2, 'Please enter your full legal name'),
   petitioner_address: z.string().min(5, 'Please enter your complete address'),
   petitioner_city: z.string().optional().or(z.literal('')),
-  petitioner_zip: z.string().optional().or(z.literal('')),
-  petitioner_phone: z.string().min(10, 'Please enter a valid phone number'),
-  petitioner_email: z.string().email('Please enter a valid email').optional().or(z.literal('')),
+  petitioner_zip: z.string().regex(/^\d{5}(-\d{4})?$/, 'Enter valid ZIP code (12345 or 12345-6789)').optional().or(z.literal('')),
+  petitioner_phone: phoneSchema,
+  petitioner_email: optionalEmailSchema,
   respondent_name: z.string().min(2, 'Please enter respondent\'s full legal name'),
   respondent_address: z.string().optional().or(z.literal('')),
-  respondent_phone: z.string().optional().or(z.literal('')),
-  marriage_date: z.string().min(1, 'Please enter the date of marriage'),
+  respondent_phone: optionalPhoneSchema,
+  marriage_date: pastDateSchema('Marriage date'),
   marriage_location: z.string().optional().or(z.literal('')),
-  separation_date: z.string().min(1, 'Please enter the date of separation'),
-  county: z.string().min(1, 'Please select the California county for filing'),
+  separation_date: pastDateSchema('Separation date'),
+  county: z.enum(CALIFORNIA_COUNTIES as unknown as [string, ...string[]], {
+    errorMap: () => ({ message: 'Please select a valid California county' })
+  }),
   ca_residency_duration: z.string().optional().or(z.literal('')),
   county_residency_duration: z.string().optional().or(z.literal('')),
   children: z.string().min(1, 'Please specify if there are minor children'),
@@ -38,7 +49,19 @@ const divorceSchema = z.object({
   request_property: z.boolean().optional(),
   request_name_change: z.boolean().optional(),
   former_name: z.string().optional().or(z.literal('')),
-})
+}).refine(
+  (data) => {
+    // Marriage must be before separation
+    if (data.marriage_date && data.separation_date) {
+      return validationHelpers.dateIsBefore(data.marriage_date, data.separation_date)
+    }
+    return true
+  },
+  {
+    message: 'Separation date must be after marriage date',
+    path: ['separation_date']
+  }
+)
 
 type FormData = z.infer<typeof divorceSchema>
 

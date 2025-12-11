@@ -9,6 +9,15 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DocumentPreview } from '@/components/ui/document-preview'
 import { SignupModal } from '@/components/ui/signup-modal'
+import {
+  phoneSchema,
+  optionalEmailSchema,
+  formatPhoneNumber,
+  dateSchema,
+  pastDateSchema,
+  validationHelpers,
+  CALIFORNIA_COUNTIES,
+} from '@/lib/form-validations'
 
 const STORAGE_KEY = 'name_change_draft'
 
@@ -30,15 +39,17 @@ const nameChangeSchema = z.object({
   address: z.string().min(5, 'Please enter your complete address'),
   city: z.string().min(2, 'Please enter your city'),
   state: z.string().default('California'),
-  zip: z.string().min(5, 'Please enter your ZIP code'),
-  phone: z.string().min(10, 'Please enter your phone number'),
-  email: z.string().email('Please enter a valid email').optional().or(z.literal('')),
+  zip: z.string().regex(/^\d{5}(-\d{4})?$/, 'Enter valid ZIP code (12345 or 12345-6789)'),
+  phone: phoneSchema,
+  email: optionalEmailSchema,
 
   // Case Information
   divorce_case_number: z.string().min(1, 'Please enter your divorce case number'),
-  county: z.string().min(1, 'Please select the county where divorce was filed'),
-  marriage_date: z.string().min(1, 'Please enter your marriage date'),
-  divorce_finalized_date: z.string().min(1, 'Please enter when your divorce was finalized'),
+  county: z.enum(CALIFORNIA_COUNTIES as unknown as [string, ...string[]], {
+    errorMap: () => ({ message: 'Please select a valid California county' })
+  }),
+  marriage_date: pastDateSchema('Marriage date'),
+  divorce_finalized_date: pastDateSchema('Divorce finalized date'),
 
   // Reason for Name Change
   reason: z.string().min(10, 'Please explain why you are changing your name'),
@@ -55,7 +66,19 @@ const nameChangeSchema = z.object({
   declare_under_penalty: z.boolean().refine((val) => val === true, {
     message: 'You must declare under penalty of perjury'
   }),
-})
+}).refine(
+  (data) => {
+    // Marriage date must be before divorce date
+    if (data.marriage_date && data.divorce_finalized_date) {
+      return validationHelpers.dateIsBefore(data.marriage_date, data.divorce_finalized_date)
+    }
+    return true
+  },
+  {
+    message: 'Divorce date must be after marriage date',
+    path: ['divorce_finalized_date']
+  }
+)
 
 type NameChangeFormData = z.infer<typeof nameChangeSchema>
 
@@ -65,18 +88,6 @@ interface NameChangeFormWrapperProps {
     name: string
   }
 }
-
-const CALIFORNIA_COUNTIES = [
-  'Alameda', 'Alpine', 'Amador', 'Butte', 'Calaveras', 'Colusa', 'Contra Costa',
-  'Del Norte', 'El Dorado', 'Fresno', 'Glenn', 'Humboldt', 'Imperial', 'Inyo',
-  'Kern', 'Kings', 'Lake', 'Lassen', 'Los Angeles', 'Madera', 'Marin', 'Mariposa',
-  'Mendocino', 'Merced', 'Modoc', 'Mono', 'Monterey', 'Napa', 'Nevada', 'Orange',
-  'Placer', 'Plumas', 'Riverside', 'Sacramento', 'San Benito', 'San Bernardino',
-  'San Diego', 'San Francisco', 'San Joaquin', 'San Luis Obispo', 'San Mateo',
-  'Santa Barbara', 'Santa Clara', 'Santa Cruz', 'Shasta', 'Sierra', 'Siskiyou',
-  'Solano', 'Sonoma', 'Stanislaus', 'Sutter', 'Tehama', 'Trinity', 'Tulare',
-  'Tuolumne', 'Ventura', 'Yolo', 'Yuba'
-]
 
 export function NameChangeFormWrapper({ template }: NameChangeFormWrapperProps) {
   const router = useRouter()
@@ -100,6 +111,17 @@ export function NameChangeFormWrapper({ template }: NameChangeFormWrapperProps) 
       bankruptcy_history: 'no',
     },
   })
+
+  // Auto-format phone number as user types
+  useEffect(() => {
+    const phone = watch('phone')
+    if (phone && phone.length > 0 && phone.length <= 14) {
+      const formatted = formatPhoneNumber(phone)
+      if (formatted !== phone) {
+        setValue('phone', formatted, { shouldValidate: false })
+      }
+    }
+  }, [watch('phone'), setValue])
 
   // Auto-save to localStorage
   useEffect(() => {

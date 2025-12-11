@@ -9,6 +9,16 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DocumentPreview } from '@/components/ui/document-preview'
 import { SignupModal } from '@/components/ui/signup-modal'
+import {
+  currencySchema,
+  optionalCurrencySchema,
+  phoneSchema,
+  optionalEmailSchema,
+  percentageSchema,
+  CALIFORNIA_COUNTIES,
+  validationHelpers,
+  formatPhoneNumber,
+} from '@/lib/form-validations'
 
 const STORAGE_KEY = 'stipulation_support_draft'
 
@@ -16,23 +26,25 @@ const STORAGE_KEY = 'stipulation_support_draft'
 const stipulationSchema = z.object({
   // Case Information
   case_number: z.string().min(1, 'Please enter the case number'),
-  county: z.string().min(1, 'Please select the county'),
+  county: z.enum(CALIFORNIA_COUNTIES as unknown as [string, ...string[]], {
+    errorMap: () => ({ message: 'Please select a valid California county' })
+  }),
 
   // Parent 1 (Petitioner)
   parent1_name: z.string().min(2, 'Please enter Parent 1 full name'),
   parent1_address: z.string().min(5, 'Please enter Parent 1 complete address'),
   parent1_city: z.string().optional().or(z.literal('')),
   parent1_zip: z.string().optional().or(z.literal('')),
-  parent1_phone: z.string().min(10, 'Please enter Parent 1 phone number'),
-  parent1_email: z.string().email('Please enter valid email').optional().or(z.literal('')),
+  parent1_phone: phoneSchema,
+  parent1_email: optionalEmailSchema,
 
   // Parent 2 (Respondent)
   parent2_name: z.string().min(2, 'Please enter Parent 2 full name'),
   parent2_address: z.string().min(5, 'Please enter Parent 2 complete address'),
   parent2_city: z.string().optional().or(z.literal('')),
   parent2_zip: z.string().optional().or(z.literal('')),
-  parent2_phone: z.string().min(10, 'Please enter Parent 2 phone number'),
-  parent2_email: z.string().email('Please enter valid email').optional().or(z.literal('')),
+  parent2_phone: phoneSchema,
+  parent2_email: optionalEmailSchema,
 
   // Children Information
   number_of_children: z.string().min(1, 'Please enter number of children'),
@@ -42,14 +54,14 @@ const stipulationSchema = z.object({
 
   // Current Support Order (if modifying)
   is_modification: z.enum(['yes', 'no']).default('no'),
-  current_support_amount: z.string().optional().or(z.literal('')),
+  current_support_amount: optionalCurrencySchema,
   current_order_date: z.string().optional().or(z.literal('')),
   reason_for_modification: z.string().optional().or(z.literal('')),
 
   // Agreed Support Amount
   paying_parent: z.string().min(2, 'Please enter who will pay support'),
   receiving_parent: z.string().min(2, 'Please enter who will receive support'),
-  monthly_support_amount: z.string().min(1, 'Please enter the agreed monthly support amount'),
+  monthly_support_amount: currencySchema('Monthly support amount'),
   effective_date: z.string().min(1, 'Please enter when support payments begin'),
 
   // Payment Details
@@ -59,11 +71,11 @@ const stipulationSchema = z.object({
 
   // Additional Expenses
   includes_childcare: z.boolean().default(false),
-  childcare_amount: z.string().optional().or(z.literal('')),
+  childcare_amount: optionalCurrencySchema,
   childcare_provider: z.string().optional().or(z.literal('')),
 
   includes_health_insurance: z.boolean().default(false),
-  health_insurance_amount: z.string().optional().or(z.literal('')),
+  health_insurance_amount: optionalCurrencySchema,
   health_insurance_provider: z.string().optional().or(z.literal('')),
 
   includes_uninsured_medical: z.boolean().default(false),
@@ -74,12 +86,12 @@ const stipulationSchema = z.object({
   extracurricular_details: z.string().optional().or(z.literal('')),
 
   // Income Information
-  paying_parent_monthly_income: z.string().min(1, 'Please enter paying parent monthly income'),
-  receiving_parent_monthly_income: z.string().min(1, 'Please enter receiving parent monthly income'),
+  paying_parent_monthly_income: currencySchema('Paying parent monthly income'),
+  receiving_parent_monthly_income: currencySchema('Receiving parent monthly income'),
 
   // Timeshare
-  paying_parent_timeshare: z.string().min(1, 'Please enter paying parent timeshare percentage'),
-  receiving_parent_timeshare: z.string().min(1, 'Please enter receiving parent timeshare percentage'),
+  paying_parent_timeshare: percentageSchema('Paying parent timeshare'),
+  receiving_parent_timeshare: percentageSchema('Receiving parent timeshare'),
 
   // Additional Terms
   additional_terms: z.string().optional().or(z.literal('')),
@@ -98,7 +110,16 @@ const stipulationSchema = z.object({
   parent2_declaration: z.boolean().refine((val) => val === true, {
     message: 'Parent 2 must declare under penalty of perjury'
   }),
-})
+}).refine(
+  (data) => validationHelpers.timeshareEquals100(
+    data.paying_parent_timeshare,
+    data.receiving_parent_timeshare
+  ),
+  {
+    message: 'Timeshare percentages must add up to exactly 100%',
+    path: ['receiving_parent_timeshare']
+  }
+)
 
 type StipulationFormData = z.infer<typeof stipulationSchema>
 
@@ -108,18 +129,6 @@ interface StipulationSupportFormWrapperProps {
     name: string
   }
 }
-
-const CALIFORNIA_COUNTIES = [
-  'Alameda', 'Alpine', 'Amador', 'Butte', 'Calaveras', 'Colusa', 'Contra Costa',
-  'Del Norte', 'El Dorado', 'Fresno', 'Glenn', 'Humboldt', 'Imperial', 'Inyo',
-  'Kern', 'Kings', 'Lake', 'Lassen', 'Los Angeles', 'Madera', 'Marin', 'Mariposa',
-  'Mendocino', 'Merced', 'Modoc', 'Mono', 'Monterey', 'Napa', 'Nevada', 'Orange',
-  'Placer', 'Plumas', 'Riverside', 'Sacramento', 'San Benito', 'San Bernardino',
-  'San Diego', 'San Francisco', 'San Joaquin', 'San Luis Obispo', 'San Mateo',
-  'Santa Barbara', 'Santa Clara', 'Santa Cruz', 'Shasta', 'Sierra', 'Siskiyou',
-  'Solano', 'Sonoma', 'Stanislaus', 'Sutter', 'Tehama', 'Trinity', 'Tulare',
-  'Tuolumne', 'Ventura', 'Yolo', 'Yuba'
-]
 
 export function StipulationSupportFormWrapper({ template }: StipulationSupportFormWrapperProps) {
   const router = useRouter()

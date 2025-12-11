@@ -10,15 +10,27 @@ import { Input } from '@/components/ui/input'
 import { FieldLabel } from '@/components/ui/tooltip'
 import { DocumentPreview } from '@/components/ui/document-preview'
 import { SignupModal } from '@/components/ui/signup-modal'
+import {
+  phoneSchema,
+  optionalPhoneSchema,
+  formatPhoneNumber,
+  CALIFORNIA_COUNTIES,
+  percentageSchema,
+  parsePercentage,
+  validationHelpers,
+  checkFormCompleteness,
+} from '@/lib/form-validations'
 
 const custodySchema = z.object({
   parent1_name: z.string().min(2, 'Please enter Parent 1\'s full legal name (at least 2 characters)'),
   parent1_address: z.string().min(5, 'Please enter Parent 1\'s complete address (street, city, state, ZIP)'),
-  parent1_phone: z.string().min(10, 'Please enter a valid phone number (at least 10 digits)'),
+  parent1_phone: phoneSchema,
   parent2_name: z.string().min(2, 'Please enter Parent 2\'s full legal name (at least 2 characters)'),
   parent2_address: z.string().min(5, 'Please enter Parent 2\'s complete address (street, city, state, ZIP)'),
-  parent2_phone: z.string().min(10, 'Please enter a valid phone number (at least 10 digits)'),
-  county: z.string().min(1, 'Please select the California county where the agreement will be filed'),
+  parent2_phone: phoneSchema,
+  county: z.enum(CALIFORNIA_COUNTIES as unknown as [string, ...string[]], {
+    errorMap: () => ({ message: 'Please select a valid California county' })
+  }),
   children_info: z.string().min(10, 'Please list all children with their full names, birthdates, and ages'),
   custody_type: z.string().min(1, 'Please select a custody arrangement (joint or sole, legal and/or physical)'),
   regular_schedule: z.string().min(20, 'Please provide a detailed weekly parenting schedule with specific days and times'),
@@ -28,7 +40,21 @@ const custodySchema = z.object({
   transportation: z.string().optional().or(z.literal('')),
   communication: z.string().optional().or(z.literal('')),
   relocation_distance: z.string().optional().or(z.literal('')),
-})
+  parent1_timeshare: percentageSchema('Parent 1 timeshare').optional().or(z.literal('')),
+  parent2_timeshare: percentageSchema('Parent 2 timeshare').optional().or(z.literal('')),
+}).refine(
+  (data) => {
+    // If both timeshare fields are filled, they must equal 100%
+    if (data.parent1_timeshare && data.parent2_timeshare) {
+      return validationHelpers.timeshareEquals100(data.parent1_timeshare, data.parent2_timeshare)
+    }
+    return true // Optional fields, so if either is empty, validation passes
+  },
+  {
+    message: 'Timeshare percentages must add up to exactly 100%',
+    path: ['parent2_timeshare']
+  }
+)
 
 type FormData = z.infer<typeof custodySchema>
 
@@ -57,6 +83,8 @@ const FIELD_LABELS: Record<string, string> = {
   county: 'County',
   children_info: 'Children Information',
   custody_type: 'Custody Type',
+  parent1_timeshare: 'Parent 1 Timeshare %',
+  parent2_timeshare: 'Parent 2 Timeshare %',
   regular_schedule: 'Regular Parenting Schedule',
   holiday_schedule: 'Holiday Schedule',
   summer_schedule: 'Summer Schedule',
@@ -69,7 +97,7 @@ const FIELD_LABELS: Record<string, string> = {
 const PREVIEW_SECTIONS: Record<string, string[]> = {
   'Parent 1 Information': ['parent1_name', 'parent1_address', 'parent1_phone'],
   'Parent 2 Information': ['parent2_name', 'parent2_address', 'parent2_phone'],
-  'Case Details': ['county', 'children_info', 'custody_type'],
+  'Case Details': ['county', 'children_info', 'custody_type', 'parent1_timeshare', 'parent2_timeshare'],
   'Visitation Schedule': ['regular_schedule', 'holiday_schedule', 'summer_schedule', 'exchange_location', 'transportation', 'communication', 'relocation_distance'],
 }
 
@@ -82,6 +110,7 @@ export default function CustodyAgreementFormWrapper({ template }: CustodyAgreeme
   const [showPreview, setShowPreview] = useState(false)
   const [showSignupModal, setShowSignupModal] = useState(false)
   const [previewData, setPreviewData] = useState<FormData | null>(null)
+  const [formProgress, setFormProgress] = useState(0)
 
   const {
     register,
@@ -93,8 +122,42 @@ export default function CustodyAgreementFormWrapper({ template }: CustodyAgreeme
     resolver: zodResolver(custodySchema),
   })
 
-  // Auto-save to localStorage as user types
+  // Watch all form data
   const formData = watch()
+
+  // Auto-format phone numbers as user types
+  useEffect(() => {
+    const phone1 = watch('parent1_phone')
+    if (phone1 && phone1.length > 0 && phone1.length <= 14) {
+      const formatted = formatPhoneNumber(phone1)
+      if (formatted !== phone1) {
+        setValue('parent1_phone', formatted, { shouldValidate: false })
+      }
+    }
+  }, [watch('parent1_phone'), setValue])
+
+  useEffect(() => {
+    const phone2 = watch('parent2_phone')
+    if (phone2 && phone2.length > 0 && phone2.length <= 14) {
+      const formatted = formatPhoneNumber(phone2)
+      if (formatted !== phone2) {
+        setValue('parent2_phone', formatted, { shouldValidate: false })
+      }
+    }
+  }, [watch('parent2_phone'), setValue])
+
+  // Calculate form completion progress
+  useEffect(() => {
+    const requiredFields = [
+      'parent1_name', 'parent1_address', 'parent1_phone',
+      'parent2_name', 'parent2_address', 'parent2_phone',
+      'county', 'children_info', 'custody_type', 'regular_schedule'
+    ]
+    const completeness = checkFormCompleteness(formData, requiredFields)
+    setFormProgress(completeness.progress)
+  }, [formData])
+
+  // Auto-save to localStorage as user types
   useEffect(() => {
     const handler = setTimeout(() => {
       if (formData && Object.keys(formData).length > 0) {
@@ -190,6 +253,26 @@ export default function CustodyAgreementFormWrapper({ template }: CustodyAgreeme
             <strong>No signup required!</strong> Fill out the form first, create account when ready
           </span>
         </div>
+
+        {/* Form Progress Indicator */}
+        <div className="mt-6 bg-gray-50 border border-gray-200 rounded-lg p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-gray-700">Form Progress</span>
+            <span className="text-sm font-semibold text-blue-600">{formProgress}%</span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-2.5">
+            <div
+              className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
+              style={{ width: `${formProgress}%` }}
+            ></div>
+          </div>
+          <p className="text-xs text-gray-500 mt-2">
+            {formProgress < 100
+              ? `Fill in all required fields to preview your document`
+              : `Ready to preview! Click "Preview Document" below`
+            }
+          </p>
+        </div>
       </div>
 
       {error && (
@@ -271,7 +354,18 @@ export default function CustodyAgreementFormWrapper({ template }: CustodyAgreeme
                 required
                 htmlFor="county"
               />
-              <Input id="county" {...register('county')} placeholder="Los Angeles, Orange, San Diego, etc." />
+              <select
+                id="county"
+                {...register('county')}
+                className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">Select County</option>
+                {CALIFORNIA_COUNTIES.map((county) => (
+                  <option key={county} value={county}>
+                    {county}
+                  </option>
+                ))}
+              </select>
               {errors.county && (
                 <p className="text-red-600 text-sm mt-1">{errors.county.message}</p>
               )}
@@ -315,6 +409,67 @@ export default function CustodyAgreementFormWrapper({ template }: CustodyAgreeme
               </select>
               {errors.custody_type && (
                 <p className="text-red-600 text-sm mt-1">{errors.custody_type.message}</p>
+              )}
+            </div>
+
+            {/* Optional: Timeshare Percentages */}
+            <div className="border-t pt-4 mt-4">
+              <h3 className="text-sm font-semibold text-gray-700 mb-3">
+                Parenting Time Percentage (Optional)
+              </h3>
+              <p className="text-xs text-gray-600 mb-3">
+                Calculate the approximate percentage of time each parent has with the children. This is helpful for child support calculations. Example: 50/50 split, or 70/30 if one parent has primary custody.
+              </p>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <FieldLabel
+                    label="Parent 1 Timeshare"
+                    tooltip="Percentage of time children spend with Parent 1. Enter as a number (e.g., 50 for 50%). Must add up to 100% with Parent 2's timeshare."
+                    htmlFor="parent1_timeshare"
+                  />
+                  <Input
+                    id="parent1_timeshare"
+                    {...register('parent1_timeshare')}
+                    placeholder="50%"
+                  />
+                  {errors.parent1_timeshare && (
+                    <p className="text-red-600 text-sm mt-1">{errors.parent1_timeshare.message}</p>
+                  )}
+                </div>
+                <div>
+                  <FieldLabel
+                    label="Parent 2 Timeshare"
+                    tooltip="Percentage of time children spend with Parent 2. Enter as a number (e.g., 50 for 50%). Must add up to 100% with Parent 1's timeshare."
+                    htmlFor="parent2_timeshare"
+                  />
+                  <Input
+                    id="parent2_timeshare"
+                    {...register('parent2_timeshare')}
+                    placeholder="50%"
+                  />
+                  {errors.parent2_timeshare && (
+                    <p className="text-red-600 text-sm mt-1">{errors.parent2_timeshare.message}</p>
+                  )}
+                </div>
+              </div>
+              {watch('parent1_timeshare') && watch('parent2_timeshare') && (
+                <div className="mt-3">
+                  {validationHelpers.timeshareEquals100(watch('parent1_timeshare'), watch('parent2_timeshare')) ? (
+                    <div className="flex items-center gap-2 text-green-700 text-sm">
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                      <span>Timeshare adds up to 100% ✓</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 text-amber-700 text-sm">
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      <span>Total: {parsePercentage(watch('parent1_timeshare')) + parsePercentage(watch('parent2_timeshare'))}% (should be 100%)</span>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           </div>

@@ -10,38 +10,58 @@ import { Input } from '@/components/ui/input'
 import { FieldLabel } from '@/components/ui/tooltip'
 import { DocumentPreview } from '@/components/ui/document-preview'
 import { SignupModal } from '@/components/ui/signup-modal'
+import {
+  optionalCurrencySchema,
+  CALIFORNIA_COUNTIES,
+  pastDateSchema,
+  validationHelpers,
+} from '@/lib/form-validations'
 
 const spousalSupportSchema = z.object({
   paying_spouse: z.string().min(2, 'Please enter paying spouse\'s full name'),
   paying_spouse_address: z.string().optional().or(z.literal('')),
   receiving_spouse: z.string().min(2, 'Please enter receiving spouse\'s full name'),
   receiving_spouse_address: z.string().optional().or(z.literal('')),
-  county: z.string().min(1, 'Please select the California county'),
-  marriage_date: z.string().optional().or(z.literal('')),
-  separation_date: z.string().optional().or(z.literal('')),
+  county: z.enum(CALIFORNIA_COUNTIES as unknown as [string, ...string[]], {
+    errorMap: () => ({ message: 'Please select a valid California county' })
+  }),
+  marriage_date: pastDateSchema('Marriage date').optional().or(z.literal('')),
+  separation_date: pastDateSchema('Separation date').optional().or(z.literal('')),
   marriage_length: z.string().optional().or(z.literal('')),
   long_term_marriage: z.boolean().optional(),
-  paying_spouse_income: z.string().optional().or(z.literal('')),
+  paying_spouse_income: optionalCurrencySchema,
   paying_spouse_income_source: z.string().optional().or(z.literal('')),
   paying_spouse_age: z.string().optional().or(z.literal('')),
   paying_spouse_health: z.string().optional().or(z.literal('')),
   paying_spouse_education: z.string().optional().or(z.literal('')),
   paying_spouse_assets: z.string().optional().or(z.literal('')),
-  receiving_spouse_income: z.string().optional().or(z.literal('')),
+  receiving_spouse_income: optionalCurrencySchema,
   receiving_spouse_income_source: z.string().optional().or(z.literal('')),
-  receiving_spouse_needs: z.string().optional().or(z.literal('')),
+  receiving_spouse_needs: optionalCurrencySchema,
   receiving_spouse_age: z.string().optional().or(z.literal('')),
   receiving_spouse_health: z.string().optional().or(z.literal('')),
   receiving_spouse_education: z.string().optional().or(z.literal('')),
   receiving_spouse_assets: z.string().optional().or(z.literal('')),
   time_needed_for_training: z.string().optional().or(z.literal('')),
   marital_standard_of_living: z.string().optional().or(z.literal('')),
-  support_amount: z.string().optional().or(z.literal('')),
+  support_amount: optionalCurrencySchema,
   support_duration: z.string().optional().or(z.literal('')),
   payment_method: z.string().optional().or(z.literal('')),
   payment_date: z.string().optional().or(z.literal('')),
   termination_events: z.string().optional().or(z.literal('')),
-})
+}).refine(
+  (data) => {
+    // If both dates are provided, marriage must be before separation
+    if (data.marriage_date && data.separation_date) {
+      return validationHelpers.dateIsBefore(data.marriage_date, data.separation_date)
+    }
+    return true
+  },
+  {
+    message: 'Separation date must be after marriage date',
+    path: ['separation_date']
+  }
+)
 
 type FormData = z.infer<typeof spousalSupportSchema>
 

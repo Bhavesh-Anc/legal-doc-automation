@@ -10,19 +10,30 @@ import { Input } from '@/components/ui/input'
 import { FieldLabel } from '@/components/ui/tooltip'
 import { DocumentPreview } from '@/components/ui/document-preview'
 import { SignupModal } from '@/components/ui/signup-modal'
+import {
+  optionalCurrencySchema,
+  optionalPhoneSchema,
+  parseCurrency,
+  formatCurrency,
+  CALIFORNIA_COUNTIES,
+  pastDateSchema,
+  validationHelpers,
+} from '@/lib/form-validations'
 
 const propertySchema = z.object({
   party1_name: z.string().min(2, 'Please enter Party 1\'s full legal name'),
   party1_address: z.string().optional().or(z.literal('')),
   party2_name: z.string().min(2, 'Please enter Party 2\'s full legal name'),
   party2_address: z.string().optional().or(z.literal('')),
-  county: z.string().min(1, 'Please select the California county'),
-  marriage_date: z.string().optional().or(z.literal('')),
-  separation_date: z.string().optional().or(z.literal('')),
+  county: z.enum(CALIFORNIA_COUNTIES as unknown as [string, ...string[]], {
+    errorMap: () => ({ message: 'Please select a valid California county' })
+  }),
+  marriage_date: pastDateSchema('Marriage date').optional().or(z.literal('')),
+  separation_date: pastDateSchema('Separation date').optional().or(z.literal('')),
   real_property: z.string().optional().or(z.literal('')),
   family_home: z.string().optional().or(z.literal('')),
-  family_home_value: z.string().optional().or(z.literal('')),
-  family_home_equity: z.string().optional().or(z.literal('')),
+  family_home_value: optionalCurrencySchema,
+  family_home_equity: optionalCurrencySchema,
   personal_property: z.string().optional().or(z.literal('')),
   vehicles: z.string().optional().or(z.literal('')),
   bank_accounts: z.string().optional().or(z.literal('')),
@@ -32,15 +43,27 @@ const propertySchema = z.object({
   business_interests: z.string().optional().or(z.literal('')),
   other_assets: z.string().optional().or(z.literal('')),
   debts: z.string().optional().or(z.literal('')),
-  mortgage_balance: z.string().optional().or(z.literal('')),
-  credit_card_debt: z.string().optional().or(z.literal('')),
-  auto_loans: z.string().optional().or(z.literal('')),
-  other_debts: z.string().optional().or(z.literal('')),
+  mortgage_balance: optionalCurrencySchema,
+  credit_card_debt: optionalCurrencySchema,
+  auto_loans: optionalCurrencySchema,
+  other_debts: optionalCurrencySchema,
   division_method: z.string().optional().or(z.literal('')),
-  buyout_amount: z.string().optional().or(z.literal('')),
+  buyout_amount: optionalCurrencySchema,
   spousal_support_waiver: z.boolean().optional(),
   spousal_support_terms: z.string().optional().or(z.literal('')),
-})
+}).refine(
+  (data) => {
+    // If both dates are provided, marriage must be before separation
+    if (data.marriage_date && data.separation_date) {
+      return validationHelpers.dateIsBefore(data.marriage_date, data.separation_date)
+    }
+    return true
+  },
+  {
+    message: 'Separation date must be after marriage date',
+    path: ['separation_date']
+  }
+)
 
 type FormData = z.infer<typeof propertySchema>
 
@@ -91,6 +114,8 @@ export default function PropertySettlementFormWrapper({ template }: PropertySett
   const [showPreview, setShowPreview] = useState(false)
   const [showSignupModal, setShowSignupModal] = useState(false)
   const [previewData, setPreviewData] = useState<FormData | null>(null)
+  const [assetTotal, setAssetTotal] = useState(0)
+  const [debtTotal, setDebtTotal] = useState(0)
 
   const {
     register,
@@ -108,6 +133,29 @@ export default function PropertySettlementFormWrapper({ template }: PropertySett
   })
 
   const formData = watch()
+
+  // Calculate asset and debt totals in real-time
+  useEffect(() => {
+    const homeValue = parseCurrency(watch('family_home_value'))
+    const homeEquity = parseCurrency(watch('family_home_equity'))
+    const totalAssets = homeValue + homeEquity
+    setAssetTotal(totalAssets)
+
+    const mortgage = parseCurrency(watch('mortgage_balance'))
+    const creditCard = parseCurrency(watch('credit_card_debt'))
+    const autoLoan = parseCurrency(watch('auto_loans'))
+    const otherDebt = parseCurrency(watch('other_debts'))
+    const totalDebts = mortgage + creditCard + autoLoan + otherDebt
+    setDebtTotal(totalDebts)
+  }, [
+    watch('family_home_value'),
+    watch('family_home_equity'),
+    watch('mortgage_balance'),
+    watch('credit_card_debt'),
+    watch('auto_loans'),
+    watch('other_debts')
+  ])
+
   useEffect(() => {
     const handler = setTimeout(() => {
       if (formData && Object.keys(formData).length > 0) {
@@ -241,7 +289,18 @@ export default function PropertySettlementFormWrapper({ template }: PropertySett
                 required
                 htmlFor="county"
               />
-              <Input id="county" {...register('county')} placeholder="Los Angeles, Orange, San Diego, etc." />
+              <select
+                id="county"
+                {...register('county')}
+                className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">Select County</option>
+                {CALIFORNIA_COUNTIES.map((county) => (
+                  <option key={county} value={county}>
+                    {county}
+                  </option>
+                ))}
+              </select>
               {errors.county && <p className="text-red-600 text-sm mt-1">{errors.county.message}</p>}
             </div>
             <div className="grid grid-cols-2 gap-4">
